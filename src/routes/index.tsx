@@ -85,8 +85,8 @@ function Editor() {
   const locate = useCallback(
     (t: number) => {
       for (let i = 0; i < videos.length; i++) {
-        const len = videos[i].outPoint - videos[i].inPoint;
-        if (t < starts[i] + len || i === videos.length - 1) return { i, local: videos[i].inPoint + Math.min(len, Math.max(0, t - starts[i])) };
+        const len = videos[i]!.outPoint - videos[i]!.inPoint;
+        if (t < starts[i]! + len || i === videos.length - 1) return { i, local: videos[i]!.inPoint + Math.min(len, Math.max(0, t - starts[i]!)) };
       }
       return { i: 0, local: 0 };
     },
@@ -177,7 +177,7 @@ function Editor() {
     if (active >= videos.length && videos.length) setActive(videos.length - 1);
   }, [videos.length, active]);
 
-  const clip = videos[active];
+  const clip = videos[active]!;
 
   const splitAtPlayhead = () => {
     if (selected?.kind === "audio") {
@@ -191,7 +191,7 @@ function Editor() {
       return;
     }
     const { i, local } = locate(current);
-    const v = videos[i];
+    const v = videos[i]!;
     if (!v || local <= v.inPoint + 0.1 || local >= v.outPoint - 0.1) return;
     setVideos((vs) => [...vs.slice(0, i), { ...v, outPoint: local }, { ...v, id: uid(), inPoint: local }, ...vs.slice(i + 1)]);
   };
@@ -277,16 +277,16 @@ function Editor() {
                 if (el.currentTime >= clip.outPoint - 0.03) {
                   if (active < videos.length - 1) {
                     wantPlay.current = !el.paused;
-                    pendingSeek.current = videos[active + 1].inPoint;
+                    pendingSeek.current = videos[active + 1]!.inPoint;
                     setActive(active + 1);
-                    setCurrent(starts[active + 1]);
+                    setCurrent(starts[active + 1]!);
                   } else {
                     el.pause();
                     setCurrent(total);
                   }
                   return;
                 }
-                const t = starts[active] + Math.max(0, el.currentTime - clip.inPoint);
+                const t = starts[active]! + Math.max(0, el.currentTime - clip.inPoint);
                 setCurrent(t);
                 syncAudio(t);
               }}

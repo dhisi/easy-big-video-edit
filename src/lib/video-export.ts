@@ -72,7 +72,7 @@ export async function readMediaDuration(file: File) {
  */
 export async function startExport(options: ExportOptions): Promise<ExportHandle> {
   if (!options.videos.length) throw new Error("Add a video clip first.");
-  const fileName = `${options.videos[0].file.name.replace(/\.[^.]+$/, "")}-edited.mp4`;
+  const fileName = `${options.videos[0]!.file.name.replace(/\.[^.]+$/, "")}-edited.mp4`;
 
   let writable: FileSystemWritableFileStream | null = null;
   if (supportsStreamingSave()) {
@@ -109,14 +109,14 @@ export async function startExport(options: ExportOptions): Promise<ExportHandle>
     tracks.push(track);
     codecStrings.push(await track.getCodecParameterString());
   }
-  const first = tracks[0];
+  const first = tracks[0]!;
   const canCopy =
     options.quality === "original" &&
     first.codec !== null &&
     tracks.every(
       (t, i) =>
         t.codec === first.codec &&
-        codecStrings[i] === codecStrings[0] &&
+        codecStrings[i]! === codecStrings[0]! &&
         t.codedWidth === first.codedWidth &&
         t.codedHeight === first.codedHeight &&
         t.rotation === first.rotation,
@@ -126,15 +126,15 @@ export async function startExport(options: ExportOptions): Promise<ExportHandle>
   const sinks = tracks.map((t) => new EncodedPacketSink(t));
   const effIn: number[] = [];
   for (let i = 0; i < options.videos.length; i++) {
-    const clip = options.videos[i];
+    const clip = options.videos[i]!;
     if (canCopy) {
-      const key = (await sinks[i].getKeyPacket(clip.inPoint, { verifyKeyPackets: true })) ?? (await sinks[i].getFirstPacket());
+      const key = (await sinks[i]!.getKeyPacket(clip.inPoint, { verifyKeyPackets: true })) ?? (await sinks[i]!.getFirstPacket());
       effIn.push(key ? Math.min(key.timestamp, clip.inPoint) : clip.inPoint);
     } else {
       effIn.push(clip.inPoint);
     }
   }
-  const lengths = options.videos.map((c, i) => Math.max(0, c.outPoint - effIn[i]));
+  const lengths = options.videos.map((c, i) => Math.max(0, c.outPoint - effIn[i]!));
   const starts: number[] = [];
   lengths.reduce((acc, len, i) => ((starts[i] = acc), acc + len), 0);
   const total = lengths.reduce((a, b) => a + b, 0);
@@ -165,15 +165,15 @@ export async function startExport(options: ExportOptions): Promise<ExportHandle>
   const fillOriginal = (from: number, to: number) => {
     if (!options.keepOriginalAudio) return;
     options.videos.forEach((clip, i) => {
-      const cs = starts[i];
-      const ce = cs + lengths[i];
+      const cs = starts[i]!;
+      const ce = cs + lengths[i]!;
       const a = Math.max(from, cs);
       const b = Math.min(to, ce);
-      if (b - a > 0.01) segments.push({ file: clip.file, srcStart: effIn[i] + (a - cs), srcEnd: effIn[i] + (b - cs), outStart: a });
+      if (b - a > 0.01) segments.push({ file: clip.file, srcStart: effIn[i]! + (a - cs), srcEnd: effIn[i]! + (b - cs), outStart: a });
     });
   };
   for (let i = 0; i < music.length; i++) {
-    const m = music[i];
+    const m = music[i]!;
     const s = Math.max(m.s, pos);
     const e = Math.min(m.e, total, music[i + 1]?.s ?? Infinity);
     if (e - s <= 0.01) continue;
@@ -207,11 +207,11 @@ export async function startExport(options: ExportOptions): Promise<ExportHandle>
   const runVideo = async () => {
     let firstPacket = true;
     for (let i = 0; i < options.videos.length; i++) {
-      const clip = options.videos[i];
-      const base = effIn[i];
-      const offset = starts[i];
+      const clip = options.videos[i]!;
+      const base = effIn[i]!;
+      const offset = starts[i]!;
       if (canCopy) {
-        const sink = sinks[i];
+        const sink = sinks[i]!;
         const key = (await sink.getKeyPacket(clip.inPoint, { verifyKeyPackets: true })) ?? (await sink.getFirstPacket());
         if (!key) continue;
         const meta = firstPacket ? { decoderConfig: (await first.getDecoderConfig()) ?? undefined } : undefined;
@@ -229,7 +229,7 @@ export async function startExport(options: ExportOptions): Promise<ExportHandle>
         }
       } else {
         const ctx = canvas!.getContext("2d")!;
-        const sink = new VideoSampleSink(tracks[i]);
+        const sink = new VideoSampleSink(tracks[i]!);
         for await (const sample of sink.samples(clip.inPoint, clip.outPoint)) {
           try {
             check();
@@ -238,7 +238,7 @@ export async function startExport(options: ExportOptions): Promise<ExportHandle>
             ctx.fillStyle = "#000";
             ctx.fillRect(0, 0, canvas!.width, canvas!.height);
             sample.drawWithFit(ctx, { fit: "contain" });
-            const dur = Math.min(sample.duration || 1 / 30, offset + lengths[i] - ts);
+            const dur = Math.min(sample.duration || 1 / 30, offset + lengths[i]! - ts);
             if (dur <= 0) continue;
             await (videoSource as CanvasSource).add(ts, dur);
             videoDone = ts;
@@ -285,7 +285,7 @@ export async function startExport(options: ExportOptions): Promise<ExportHandle>
             sample.copyTo(buf, { planeIndex: c, format: "f32-planar" });
             planes.push(buf);
           }
-          if (planes.length === 1) planes.push(planes[0]);
+          if (planes.length === 1) planes.push(planes[0]!);
           const len = k1 - k0;
           const out = new Float32Array(len * 2);
           for (let k = 0; k < len; k++) {
@@ -293,8 +293,8 @@ export async function startExport(options: ExportOptions): Promise<ExportHandle>
             const i = Math.min(n - 1, Math.max(0, Math.floor(p)));
             const j = Math.min(n - 1, i + 1);
             const f = Math.min(1, Math.max(0, p - i));
-            out[k] = planes[0][i] + (planes[0][j] - planes[0][i]) * f;
-            out[len + k] = planes[1][i] + (planes[1][j] - planes[1][i]) * f;
+            out[k] = planes[0]![i] + (planes[0]![j] - planes[0]![i]) * f;
+            out[len + k] = planes[1]![i] + (planes[1]![j] - planes[1]![i]) * f;
           }
           const s = new AudioSample({ data: out, format: "f32-planar", numberOfChannels: 2, sampleRate: RATE, timestamp: k0 / RATE });
           await audioSource.add(s);
