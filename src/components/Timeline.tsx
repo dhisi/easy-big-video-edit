@@ -99,13 +99,13 @@ export function Timeline(props: Props) {
     }
     const delta = (e.clientX - d.x0) / d.pps;
     if (d.kind === "v-in") {
-      const c = d.clip;
+      const c = d.clip as VideoClip;
       props.onVideoChange({ ...c, inPoint: Math.min(Math.max(0, c.inPoint + delta), c.outPoint - MIN) });
     } else if (d.kind === "v-out") {
-      const c = d.clip;
+      const c = d.clip as VideoClip;
       props.onVideoChange({ ...c, outPoint: Math.max(Math.min(c.duration, c.outPoint + delta), c.inPoint + MIN) });
     } else {
-      const c = d.clip;
+      const c = d.clip as AudioClip;
       const len = c.outPoint - c.inPoint;
       if (d.kind === "a-move") {
         props.onAudioChange({ ...c, offset: Math.max(0, c.offset + delta) });
