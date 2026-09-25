@@ -55,8 +55,12 @@ export async function startExport(options: ExportOptions): Promise<ExportHandle>
   const target = writable
     ? new StreamTarget(
         new WritableStream({
-          async write(chunk: { data: Uint8Array; position: number }) {
-            await writable!.write({ type: "write", position: chunk.position, data: chunk.data });
+          async write(chunk: { data: Uint8Array<ArrayBuffer>; position: number }) {
+            await writable!.write({
+              type: "write",
+              position: chunk.position,
+              data: chunk.data as unknown as BufferSource,
+            });
           },
         }),
         { chunked: true },
