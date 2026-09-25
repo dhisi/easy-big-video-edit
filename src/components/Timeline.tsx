@@ -88,7 +88,7 @@ export function Timeline(props: Props) {
       let acc = 0;
       let to = videos.length - 1;
       for (let i = 0; i < videos.length; i++) {
-        acc += videos[i].outPoint - videos[i].inPoint;
+        acc += videos[i]!.outPoint - videos[i]!.inPoint;
         if (t < acc) {
           to = i;
           break;
@@ -140,7 +140,8 @@ export function Timeline(props: Props) {
     </div>
   );
 
-  const ticks = Array.from({ length: Math.max(2, Math.round(5 * zoom)) + 1 }, (_, i, arr) => (span * i) / (arr.length - 1));
+  const tickCount = Math.max(2, Math.round(5 * zoom));
+  const ticks = Array.from({ length: tickCount + 1 }, (_, i) => (span * i) / tickCount);
   let acc = 0;
 
   return (
