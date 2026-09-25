@@ -3,8 +3,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Music, Pause, Play, Scissors, Upload, X } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
-import { Timeline } from "@/components/Timeline";
+import { Timeline, type AudioClip } from "@/components/Timeline";
 import {
+  readMediaDuration,
   readVideoInfo,
   startExport,
   supportsStreamingSave,
@@ -53,6 +54,7 @@ function formatSize(bytes: number) {
 function Editor() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const exportRef = useRef<ExportHandle | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const [file, setFile] = useState<File | null>(null);
   const [url, setUrl] = useState<string | null>(null);
@@ -62,10 +64,53 @@ function Editor() {
   const [start, setStart] = useState(0);
   const [end, setEnd] = useState(0);
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [clip, setClip] = useState<AudioClip | null>(null);
   const [quality, setQuality] = useState<ExportQuality>("original");
   const [progress, setProgress] = useState<number | null>(null);
 
   useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+  useEffect(() => () => { if (audioUrl) URL.revokeObjectURL(audioUrl); }, [audioUrl]);
+
+  const addAudio = useCallback(async (selected: File) => {
+    try {
+      const d = await readMediaDuration(selected);
+      if (!d) throw new Error("no duration");
+      setAudioFile(selected);
+      setAudioUrl(URL.createObjectURL(selected));
+      setClip({ name: selected.name, sourceDuration: d, offset: 0, inPoint: 0, outPoint: d });
+    } catch {
+      toast.error("That audio file couldn't be opened. Try MP3, M4A, WAV or OGG.");
+    }
+  }, []);
+
+  const removeAudio = useCallback(() => {
+    setAudioFile(null);
+    setAudioUrl(null);
+    setClip(null);
+  }, []);
+
+  /** Keep the added audio in step with the video during preview. */
+  const syncAudio = useCallback(() => {
+    const v = videoRef.current;
+    const a = audioRef.current;
+    if (!v || !a || !clip) return;
+    const t = v.currentTime;
+    const len = clip.outPoint - clip.inPoint;
+    const inside = t >= clip.offset && t < clip.offset + len;
+    if (!inside || v.paused) {
+      if (!a.paused) a.pause();
+      if (inside) a.currentTime = clip.inPoint + (t - clip.offset);
+      return;
+    }
+    const want = clip.inPoint + (t - clip.offset);
+    if (Math.abs(a.currentTime - want) > 0.25) a.currentTime = want;
+    if (a.paused) void a.play().catch(() => {});
+  }, [clip]);
+
+  useEffect(() => {
+    syncAudio();
+  }, [clip, playing, syncAudio]);
 
   const openVideo = useCallback(async (selected: File) => {
     try {
@@ -81,6 +126,8 @@ function Editor() {
       setEnd(details.duration);
       setCurrent(0);
       setAudioFile(null);
+      setAudioUrl(null);
+      setClip(null);
     } catch {
       toast.error("That file couldn't be opened. Try an MP4, MOV, WebM or MKV video.");
     }
@@ -109,6 +156,7 @@ function Editor() {
       const handle = await startExport({
         videoFile: file,
         audioFile,
+        audioClip: clip,
         keepOriginalAudio: true,
         trimStart: start,
         trimEnd: end,
@@ -126,7 +174,7 @@ function Editor() {
       exportRef.current = null;
       setProgress(null);
     }
-  }, [file, audioFile, start, end, quality]);
+  }, [file, audioFile, clip, start, end, quality]);
 
   const clipLength = Math.max(0, end - start);
 
@@ -181,6 +229,8 @@ function Editor() {
               ref={videoRef}
               src={url}
               className="mx-auto max-h-[52vh] w-full object-contain"
+              muted={Boolean(clip)}
+              onSeeked={syncAudio}
               onTimeUpdate={(e) => {
                 const el = e.currentTarget;
                 if (el.currentTime > end) {
@@ -188,11 +238,13 @@ function Editor() {
                   el.currentTime = end;
                 }
                 setCurrent(el.currentTime);
+                syncAudio();
               }}
               onPlay={() => setPlaying(true)}
               onPause={() => setPlaying(false)}
               onClick={togglePlay}
             />
+            {audioUrl && <audio ref={audioRef} src={audioUrl} preload="auto" />}
           </div>
 
           <div className="space-y-3">
@@ -219,6 +271,8 @@ function Editor() {
               start={start}
               end={end}
               onSeek={seek}
+              audio={clip}
+              onAudioChange={setClip}
               onTrim={(s, e) => {
                 setStart(s);
                 setEnd(e);
@@ -244,7 +298,7 @@ function Editor() {
                   <Music className="h-4 w-4 shrink-0 text-accent" />
                   <span className="min-w-0 flex-1 truncate text-sm">{audioFile.name}</span>
                   <button
-                    onClick={() => setAudioFile(null)}
+                    onClick={removeAudio}
                     className="shrink-0 text-muted-foreground hover:text-foreground"
                     aria-label="Remove audio"
                   >
@@ -259,12 +313,14 @@ function Editor() {
                     type="file"
                     accept="audio/*"
                     className="hidden"
-                    onChange={(e) => e.target.files?.[0] && setAudioFile(e.target.files[0])}
+                    onChange={(e) => e.target.files?.[0] && addAudio(e.target.files[0])}
                   />
                 </label>
               )}
               <p className="mt-2 text-[11px] text-muted-foreground">
-                {audioFile ? "Replaces the original sound." : "Keeps the original sound."}
+                {audioFile
+                  ? "Drag it on the timeline to position it, drag its edges to trim. Replaces the original sound."
+                  : "Keeps the original sound."}
               </p>
             </div>
 
