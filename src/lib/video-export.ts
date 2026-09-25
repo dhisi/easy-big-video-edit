@@ -15,6 +15,8 @@ export type ExportQuality = "original" | "1080p";
 export type ExportOptions = {
   videoFile: File;
   audioFile: File | null;
+  /** Placement of the audio file on the video timeline. */
+  audioClip?: { offset: number; inPoint: number; outPoint: number } | null;
   keepOriginalAudio: boolean;
   trimStart: number;
   trimEnd: number;
@@ -90,19 +92,35 @@ export async function startExport(options: ExportOptions): Promise<ExportHandle>
   });
 
   let audioConversion: Conversion | null = null;
-  if (options.audioFile) {
-    const audioInput = new Input({
-      source: new BlobSource(options.audioFile),
-      formats: ALL_FORMATS,
-    });
-    const audioDuration = await audioInput.computeDuration();
-    audioConversion = await Conversion.init({
-      input: audioInput,
-      output,
-      video: { discard: true },
-      trim: { start: 0, end: Math.min(audioDuration, clipDuration) },
-      composable: true,
-    });
+  const clip = options.audioClip;
+  if (options.audioFile && clip) {
+    // Portion of the audio clip that overlaps the exported video range (in video time).
+    const clipEnd = clip.offset + (clip.outPoint - clip.inPoint);
+    const from = Math.max(options.trimStart, clip.offset);
+    const to = Math.min(options.trimEnd, clipEnd, options.trimStart + clipDuration);
+    if (to - from > 0.05) {
+      const audioInput = new Input({
+        source: new BlobSource(options.audioFile),
+        formats: ALL_FORMATS,
+      });
+      const delay = from - options.trimStart;
+      audioConversion = await Conversion.init({
+        input: audioInput,
+        output,
+        video: { discard: true },
+        audio:
+          delay > 0.001
+            ? {
+                process: (sample) => {
+                  sample.setTimestamp(sample.timestamp + delay);
+                  return sample;
+                },
+              }
+            : {},
+        trim: { start: clip.inPoint + (from - clip.offset), end: clip.inPoint + (to - clip.offset) },
+        composable: true,
+      });
+    }
   }
 
   let videoProgress = 0;

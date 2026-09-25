@@ -155,7 +155,7 @@ export function Timeline({ duration, current, start, end, audio, onSeek, onTrim,
               onPointerDown={begin((t) => ({ kind: "audio-move", t0: t, clip: audio }))}
               onPointerMove={move}
               onPointerUp={stop}
-              className="absolute inset-y-0 cursor-grab overflow-hidden rounded-lg bg-primary/25 ring-1 ring-primary/60 active:cursor-grabbing"
+              className="absolute inset-y-0 cursor-grab overflow-hidden rounded-lg bg-audio/25 ring-1 ring-audio/60 active:cursor-grabbing"
               style={{ left: `${pct(audio.offset)}%`, width: `${pct(audio.outPoint - audio.inPoint)}%` }}
               title="Drag to move · drag edges to trim"
             >
@@ -168,7 +168,7 @@ export function Timeline({ duration, current, start, end, audio, onSeek, onTrim,
                 onPointerUp={stop}
                 className="absolute inset-y-0 left-0 z-10 flex w-3 cursor-ew-resize items-center justify-center"
               >
-                <span className="h-6 w-1 rounded-full bg-primary" />
+                <span className="h-6 w-1 rounded-full bg-audio" />
               </div>
               <div
                 onPointerDown={begin((t) => ({ kind: "audio-out", t0: t, clip: audio }))}
@@ -176,7 +176,7 @@ export function Timeline({ duration, current, start, end, audio, onSeek, onTrim,
                 onPointerUp={stop}
                 className="absolute inset-y-0 right-0 z-10 flex w-3 cursor-ew-resize items-center justify-center"
               >
-                <span className="h-6 w-1 rounded-full bg-primary" />
+                <span className="h-6 w-1 rounded-full bg-audio" />
               </div>
             </div>
           ) : (
