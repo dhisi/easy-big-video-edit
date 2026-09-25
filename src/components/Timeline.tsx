@@ -58,8 +58,9 @@ export function Timeline({ duration, current, start, end, audio, onSeek, onTrim,
       if (d.kind === "end") return onTrim(start, Math.max(time, start + MIN));
       if (d.kind === "playhead") return onSeek(Math.min(Math.max(time, 0), duration));
 
-      const c = d.clip;
-      const delta = time - d.t0;
+      const ad = d as Extract<Drag, { t0: number }>;
+      const c = ad.clip;
+      const delta = time - ad.t0;
       const len = c.outPoint - c.inPoint;
       if (d.kind === "audio-move") {
         const offset = Math.min(Math.max(0, c.offset + delta), Math.max(0, duration - MIN));
