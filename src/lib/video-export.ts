@@ -214,7 +214,8 @@ export async function startExport(options: ExportOptions): Promise<ExportHandle>
         const sink = sinks[i]!;
         const key = (await sink.getKeyPacket(clip.inPoint, { verifyKeyPackets: true })) ?? (await sink.getFirstPacket());
         if (!key) continue;
-        const meta = firstPacket ? { decoderConfig: (await first.getDecoderConfig()) ?? undefined } : undefined;
+        const cfg = firstPacket ? await first.getDecoderConfig() : null;
+        const meta = cfg ? { decoderConfig: cfg } : undefined;
         for await (const packet of sink.packets(key)) {
           check();
           if (packet.timestamp > clip.outPoint + 2) break;
@@ -293,8 +294,10 @@ export async function startExport(options: ExportOptions): Promise<ExportHandle>
             const i = Math.min(n - 1, Math.max(0, Math.floor(p)));
             const j = Math.min(n - 1, i + 1);
             const f = Math.min(1, Math.max(0, p - i));
-            out[k] = planes[0]![i] + (planes[0]![j] - planes[0]![i]) * f;
-            out[len + k] = planes[1]![i] + (planes[1]![j] - planes[1]![i]) * f;
+            const l = planes[0]!;
+            const r = planes[1]!;
+            out[k] = l[i]! + (l[j]! - l[i]!) * f;
+            out[len + k] = r[i]! + (r[j]! - r[i]!) * f;
           }
           const s = new AudioSample({ data: out, format: "f32-planar", numberOfChannels: 2, sampleRate: RATE, timestamp: k0 / RATE });
           await audioSource.add(s);

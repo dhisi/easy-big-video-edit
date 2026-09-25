@@ -177,14 +177,14 @@ function Editor() {
     if (active >= videos.length && videos.length) setActive(videos.length - 1);
   }, [videos.length, active]);
 
-  const clip = videos[active]!;
+  const clip = videos[active] as VideoClip | undefined;
 
   const splitAtPlayhead = () => {
     if (selected?.kind === "audio") {
       const a = audios.find((x) => x.id === selected.id);
       if (!a) return;
       const cut = a.inPoint + (current - a.offset);
-      if (cut <= a.inPoint + 0.1 || cut >= a.outPoint - 0.1) return toast("Move the playhead over the audio clip to split it.");
+      if (cut <= a.inPoint + 0.1 || cut >= a.outPoint - 0.1) { toast("Move the playhead over the audio clip to split it."); return; }
       setAudios((as) =>
         as.flatMap((x) => (x.id === a.id ? [{ ...a, outPoint: cut }, { ...a, id: uid(), inPoint: cut, offset: current }] : [x])),
       );
@@ -340,7 +340,7 @@ function Editor() {
               setVideos((vs) => {
                 const next = [...vs];
                 const [m] = next.splice(from, 1);
-                next.splice(to, 0, m);
+                if (m) next.splice(to, 0, m);
                 return next;
               })
             }
