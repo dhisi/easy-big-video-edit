@@ -196,3 +196,8 @@ export async function readVideoInfo(file: File) {
     height: track?.displayHeight ?? 0,
   };
 }
+
+export async function readMediaDuration(file: File) {
+  const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+  return input.computeDuration();
+}
